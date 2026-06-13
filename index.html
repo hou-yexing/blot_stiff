@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>螺栓柔度计算器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #667085;
+      --line: #d7dde5;
+      --panel: #ffffff;
+      --soft: #f4f7fa;
+      --blue: #1f6feb;
+      --green: #15803d;
+      --orange: #c2410c;
+      --red: #b42318;
+      --shadow: 0 10px 28px rgba(16, 24, 40, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #f7fafc 0%, #eef3f8 100%);
+      font-size: 14px;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 24px;
+      background: rgba(255, 255, 255, .92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    header p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    button, select, input {
+      font: inherit;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 7px 11px;
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    button.icon {
+      width: 34px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      font-weight: 700;
+    }
+
+    button:hover { filter: brightness(.97); }
+
+    main {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 16px auto 28px;
+      display: grid;
+      grid-template-columns: minmax(360px, 520px) 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel h2 {
+      margin: 0;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+      font-size: 15px;
+    }
+
+    .panel-body { padding: 16px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    input, select {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    input[readonly] {
+      background: #f8fafc;
+      color: #475467;
+    }
+
+    input:focus, select:focus {
+      outline: 2px solid rgba(31, 111, 235, .18);
+      border-color: var(--blue);
+    }
+
+    .section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .section-title h3 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .seg-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 34px;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: end;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .metric b {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .metric span {
+      display: block;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: clamp(16px, 2vw, 24px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .metric small {
+      display: block;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .drawing-wrap, .reference-wrap {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .reference-wrap {
+      padding: 12px;
+    }
+
+    .reference-wrap img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 360px;
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .reference-title {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 310px;
+      background: #f8fafc;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--muted); font-weight: 600; background: #fbfcfe; }
+    tbody tr:hover { background: #f7fbff; }
+
+    .note {
+      margin-top: 12px;
+      border-left: 3px solid var(--orange);
+      padding: 10px 12px;
+      background: #fff7ed;
+      color: #7c2d12;
+      line-height: 1.55;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .warn { color: var(--red); }
+
+    @media (max-width: 980px) {
+      header { align-items: flex-start; flex-direction: column; }
+      .header-actions { justify-content: flex-start; }
+      main { grid-template-columns: 1fr; width: min(100vw - 20px, 760px); }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 560px) {
+      .grid, .metrics { grid-template-columns: 1fr; }
+      .seg-row { grid-template-columns: 1fr 1fr; }
+      .seg-row button { grid-column: span 2; width: 100%; }
+      th, td { padding: 8px 6px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>螺栓柔度计算器</h1>
+      <p>VDI 2230 模式：标准规格选择、几何分段、贯穿/盲孔连接和柔度分项核对。</p>
+    </div>
+    <div class="header-actions">
+      <button id="exampleSolid">载入 M20 实心示例</button>
+      <button id="exampleHollow">载入阶梯空心示例</button>
+      <button class="primary" id="calcBtn">计算</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>输入参数</h2>
+      <div class="panel-body">
+        <div class="grid">
+          <label>连接形式
+            <select id="connectionType">
+              <option value="through">贯穿连接</option>
+              <option value="blind">盲孔连接</option>
+            </select>
+          </label>
+          <label>算法模式
+            <input value="VDI 2230" readonly>
+          </label>
+          <label>螺栓头类型
+            <select id="headType">
+              <option value="external">外六角螺栓头</option>
+              <option value="internal">内六角螺栓头</option>
+            </select>
+          </label>
+          <label>弹性模量 E [N/mm²]
+            <input id="elasticModulus" type="text" inputmode="decimal" value="210000">
+          </label>
+          <label>内螺纹材料模量 EM [N/mm²]
+            <input id="internalElasticModulus" type="text" inputmode="decimal" value="210000">
+          </label>
+          <label>公称直径 d
+            <select id="nominalDiameter"></select>
+          </label>
+          <label>螺距 P [mm]
+            <select id="pitch"></select>
+          </label>
+          <label>中径 d₂ [mm]
+            <input id="pitchDiameter" type="text" inputmode="decimal" readonly>
+          </label>
+          <label>小径 d₃ [mm]
+            <input id="minorDiameter" type="text" inputmode="decimal" readonly>
+          </label>
+          <label>夹紧长度 lK [mm]
+            <input id="gripLength" type="text" inputmode="decimal" value="54">
+          </label>
+          <label>螺栓头厚度 hh [mm]
+            <input id="headHeight" type="text" inputmode="decimal" value="16">
+          </label>
+          <label>头部内孔 dh [mm]
+            <input id="headHole" type="text" inputmode="decimal" value="0">
+          </label>
+          <label>外螺纹等效长度 lG [mm]
+            <input id="threadEngagementEq" type="text" inputmode="decimal" value="10" readonly>
+          </label>
+          <label>内螺纹等效长度 lM [mm]
+            <input id="internalThreadEq" type="text" inputmode="decimal" value="8" readonly>
+          </label>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h3>光杆/颈缩分段</h3>
+            <button id="addSegment" type="button">添加分段</button>
+          </div>
+          <div id="segments"></div>
+          <p class="hint">每段按圆环截面计算：A = π(d² - dh²)/4，I = π(d⁴ - dh⁴)/64。螺纹受载区长度自动取 max(lK - 光杆总长, 0)。</p>
+        </div>
+
+        <div class="section">
+          <p class="hint">公称直径和螺距来自常用 ISO 公制螺纹规格选项；选定后中径 d₂、小径 d₃ 按 d₂ = d - 0.64952P、d₃ = d - 1.22687P 自动更新。按截图公式：δGM = δG + δM，lG = 0.5d，贯穿连接 lM = 0.4d，盲孔连接 lM = 0.33d。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="metrics">
+        <div class="metric">
+          <b>拉伸柔度 δS</b>
+          <span id="deltaTotal">-</span>
+          <small>mm/N</small>
+        </div>
+        <div class="metric">
+          <b>弯曲柔度 βS</b>
+          <span id="betaTotal">-</span>
+          <small>1/(N·mm)</small>
+        </div>
+        <div class="metric">
+          <b>螺栓轴向刚度 cS</b>
+          <span id="axialStiffness">-</span>
+          <small>N/mm</small>
+        </div>
+      </div>
+
+      <div class="reference-wrap">
+        <p class="reference-title">连接尺寸参考图</p>
+        <img src="assets/bolt-connection-diagram.png" alt="螺栓连接尺寸示意图">
+      </div>
+
+      <div class="drawing-wrap">
+        <svg id="boltSvg" viewBox="0 0 900 310" role="img" aria-label="螺栓尺寸示意图"></svg>
+      </div>
+
+      <section class="panel">
+        <h2>结果分项</h2>
+        <div class="panel-body">
+          <table>
+            <thead>
+              <tr>
+                <th>区段</th>
+                <th>长度 [mm]</th>
+                <th>外径 [mm]</th>
+                <th>内孔 [mm]</th>
+                <th>面积 [mm²]</th>
+                <th>惯性矩 [mm⁴]</th>
+                <th>δ [mm/N]</th>
+                <th>β [1/(N·mm)]</th>
+              </tr>
+            </thead>
+            <tbody id="resultRows"></tbody>
+          </table>
+          <div class="note" id="note"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const segmentsEl = $("segments");
+    const metricThreads = [
+      { d: 1, pitches: [0.25] },
+      { d: 1.2, pitches: [0.25] },
+      { d: 1.4, pitches: [0.3] },
+      { d: 1.6, pitches: [0.35] },
+      { d: 1.8, pitches: [0.35] },
+      { d: 2, pitches: [0.4] },
+      { d: 2.5, pitches: [0.45] },
+      { d: 3, pitches: [0.5, 0.35] },
+      { d: 3.5, pitches: [0.6, 0.35] },
+      { d: 4, pitches: [0.7, 0.5] },
+      { d: 5, pitches: [0.8, 0.5] },
+      { d: 6, pitches: [1, 0.75, 0.5] },
+      { d: 8, pitches: [1.25, 1, 0.75, 0.5] },
+      { d: 10, pitches: [1.5, 1.25, 1, 0.75] },
+      { d: 12, pitches: [1.75, 1.5, 1.25, 1] },
+      { d: 14, pitches: [2, 1.5, 1.25, 1] },
+      { d: 16, pitches: [2, 1.5, 1] },
+      { d: 18, pitches: [2.5, 2, 1.5, 1] },
+      { d: 20, pitches: [2.5, 2, 1.5, 1] },
+      { d: 22, pitches: [2.5, 2, 1.5, 1] },
+      { d: 24, pitches: [3, 2, 1.5, 1] },
+      { d: 27, pitches: [3, 2, 1.5] },
+      { d: 30, pitches: [3.5, 3, 2, 1.5] },
+      { d: 33, pitches: [3.5, 3, 2, 1.5] },
+      { d: 36, pitches: [4, 3, 2, 1.5] },
+      { d: 39, pitches: [4, 3, 2, 1.5] },
+      { d: 42, pitches: [4.5, 4, 3, 2, 1.5] },
+      { d: 45, pitches: [4.5, 4, 3, 2, 1.5] },
+      { d: 48, pitches: [5, 4, 3, 2, 1.5] },
+      { d: 52, pitches: [5, 4, 3, 2, 1.5] },
+      { d: 56, pitches: [5.5, 4, 3, 2] },
+      { d: 60, pitches: [5.5, 4, 3, 2] },
+      { d: 64, pitches: [6, 4, 3, 2] }
+    ];
+
+    function parseNumber(value) {
+      const normalized = String(value).trim().replace(",", ".");
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function num(id) {
+      return parseNumber($(id).value);
+    }
+
+    function setInput(id, value, digits = 3) {
+      $(id).value = Number(value).toFixed(digits).replace(/\.?0+$/, "");
+    }
+
+    function area(od, id) {
+      return Math.PI * (od ** 2 - id ** 2) / 4;
+    }
+
+    function inertia(od, id) {
+      return Math.PI * (od ** 4 - id ** 4) / 64;
+    }
+
+    function blankIfNull(value, digits = 4) {
+      return value === null ? "-" : fmt(value, digits);
+    }
+
+    function fmt(value, digits = 4) {
+      if (!Number.isFinite(value)) return "-";
+      if (value === 0) return "0";
+      const abs = Math.abs(value);
+      if (abs < 0.001 || abs >= 100000) return value.toExponential(3).replace("e", "E");
+      return value.toLocaleString("zh-CN", { maximumFractionDigits: digits });
+    }
+
+    function optionLabelD(d) {
+      return `M${String(d).replace(".", ".")}`;
+    }
+
+    function populateDiameters(selected = 20) {
+      $("nominalDiameter").innerHTML = metricThreads.map(item => {
+        const value = String(item.d);
+        return `<option value="${value}"${item.d === selected ? " selected" : ""}>${optionLabelD(item.d)}</option>`;
+      }).join("");
+      populatePitches();
+    }
+
+    function populatePitches(preferred) {
+      const d = num("nominalDiameter");
+      const spec = metricThreads.find(item => item.d === d) || metricThreads[0];
+      const selected = preferred && spec.pitches.includes(preferred) ? preferred : spec.pitches[0];
+      $("pitch").innerHTML = spec.pitches.map(pitch => {
+        return `<option value="${pitch}"${pitch === selected ? " selected" : ""}>${pitch}</option>`;
+      }).join("");
+      updateThreadDiameters();
+    }
+
+    function updateThreadDiameters() {
+      const d = num("nominalDiameter");
+      const p = num("pitch");
+      setInput("pitchDiameter", d - 0.64952 * p);
+      setInput("minorDiameter", d - 1.22687 * p);
+      setInput("threadEngagementEq", 0.5 * d);
+      updateInternalThreadLength();
+      calculate();
+    }
+
+    function updateInternalThreadLength() {
+      const d = num("nominalDiameter");
+      const factor = $("connectionType").value === "blind" ? 0.33 : 0.4;
+      setInput("internalThreadEq", factor * d);
+    }
+
+    function addSegmentRow(length = 24, diameter = 20, hole = 0) {
+      const row = document.createElement("div");
+      row.className = "seg-row";
+      row.innerHTML = `
+        <label>长度 [mm]<input class="seg-length" type="text" inputmode="decimal" value="${length}"></label>
+        <label>外径 [mm]<input class="seg-diameter" type="text" inputmode="decimal" value="${diameter}"></label>
+        <label>内孔 [mm]<input class="seg-hole" type="text" inputmode="decimal" value="${hole}"></label>
+        <button class="icon" title="删除此分段" type="button">×</button>
+      `;
+      row.querySelector("button").addEventListener("click", () => {
+        row.remove();
+        calculate();
+      });
+      row.querySelectorAll("input").forEach(input => input.addEventListener("input", calculate));
+      segmentsEl.appendChild(row);
+    }
+
+    function getSegments() {
+      return [...segmentsEl.querySelectorAll(".seg-row")].map((row, index) => ({
+        name: `光杆分段 ${index + 1}`,
+        length: parseNumber(row.querySelector(".seg-length").value),
+        od: parseNumber(row.querySelector(".seg-diameter").value),
+        id: parseNumber(row.querySelector(".seg-hole").value)
+      }));
+    }
+
+    function pushPart(parts, name, length, od, id, E) {
+      const A = area(od, id);
+      const I = inertia(od, id);
+      const valid = length > 0 && od > id && A > 0 && I > 0 && E > 0;
+      parts.push({
+        name, length, od, id, A, I,
+        delta: valid ? length / (E * A) : 0,
+        beta: valid ? length / (E * I) : 0,
+        valid
+      });
+    }
+
+    function pushCustomPart(parts, name, length, od, id, A, I, delta, beta, valid = true) {
+      parts.push({ name, length, od, id, A, I, delta, beta, valid });
+    }
+
+    function calculate() {
+      const E = num("elasticModulus");
+      const EM = num("internalElasticModulus");
+      const d = num("nominalDiameter");
+      const d3 = num("minorDiameter");
+      const lK = num("gripLength");
+      const hh = num("headHeight");
+      const dh = num("headHole");
+      const lG = num("threadEngagementEq");
+      const lM = num("internalThreadEq");
+      const connectionType = $("connectionType").value;
+      const headType = $("headType").value;
+
+      const parts = [];
+      const baseHeadLength = (headType === "internal" ? 0.4 : 0.5) * d;
+      const lHead = baseHeadLength;
+      const AN = area(d, 0);
+      const IN = inertia(d, 0);
+      const Ad3 = area(d3, 0);
+      const Id3 = inertia(d3, 0);
+      const shankSegments = getSegments();
+      const shankLength = shankSegments.reduce((sum, item) => sum + item.length, 0);
+      const threadLoadedLength = Math.max(lK - shankLength, 0);
+      const internalLabel = connectionType === "blind" ? "盲孔内螺纹等效区" : "螺母内螺纹等效区";
+      const validHead = lHead > 0 && AN > 0 && IN > 0 && E > 0;
+      const validThread = d3 > 0 && Ad3 > 0 && Id3 > 0 && E > 0;
+      const validInternal = lM > 0 && AN > 0 && EM > 0;
+
+      pushCustomPart(
+        parts,
+        "螺栓头部等效区 lSK",
+        lHead,
+        d,
+        0,
+        AN,
+        IN,
+        validHead ? lHead / (E * AN) : 0,
+        validHead ? lHead / (E * IN) : 0,
+        validHead
+      );
+      shankSegments.forEach(seg => pushPart(parts, seg.name, seg.length, seg.od, seg.id, E));
+      pushCustomPart(
+        parts,
+        "螺纹杆受载区 lGew",
+        threadLoadedLength,
+        d3,
+        0,
+        Ad3,
+        Id3,
+        validThread && threadLoadedLength > 0 ? threadLoadedLength / (E * Ad3) : 0,
+        validThread && threadLoadedLength > 0 ? threadLoadedLength / (E * Id3) : 0,
+        validThread && threadLoadedLength >= 0
+      );
+      pushCustomPart(
+        parts,
+        "外螺纹小径柔度 δG",
+        lG,
+        d3,
+        0,
+        Ad3,
+        Id3,
+        validThread && lG > 0 ? lG / (E * Ad3) : 0,
+        validThread && lG > 0 ? lG / (E * Id3) : 0,
+        validThread && lG > 0
+      );
+      pushCustomPart(
+        parts,
+        `${internalLabel} δM`,
+        lM,
+        d,
+        0,
+        AN,
+        null,
+        validInternal ? lM / (EM * AN) : 0,
+        0,
+        validInternal
+      );
+
+      const deltaTotal = parts.reduce((sum, item) => sum + item.delta, 0);
+      const betaTotal = parts.reduce((sum, item) => sum + item.beta, 0);
+      const stiffness = deltaTotal > 0 ? 1 / deltaTotal : 0;
+
+      $("deltaTotal").textContent = fmt(deltaTotal);
+      $("betaTotal").textContent = fmt(betaTotal);
+      $("axialStiffness").textContent = fmt(stiffness, 2);
+
+      $("resultRows").innerHTML = parts.map(part => `
+        <tr>
+          <td>${part.valid ? "" : "<span class='warn'>!</span> "}${part.name}</td>
+          <td>${fmt(part.length, 3)}</td>
+          <td>${fmt(part.od, 3)}</td>
+          <td>${fmt(part.id, 3)}</td>
+          <td>${blankIfNull(part.A, 3)}</td>
+          <td>${blankIfNull(part.I, 3)}</td>
+          <td>${fmt(part.delta)}</td>
+          <td>${fmt(part.beta)}</td>
+        </tr>
+      `).join("");
+
+      const typeText = connectionType === "blind"
+        ? "当前为盲孔连接，lM = 0.33d，EM 取内螺纹材料模量。"
+        : "当前为贯穿连接，lM = 0.4d，EM 通常取螺母/内螺纹材料模量。";
+      const headText = headType === "internal"
+        ? "内六角头部等效长度 lSK = 0.4d，δSK = lSK/(ES·AN)。"
+        : "六角头头部等效长度 lSK = 0.5d，δSK = lSK/(ES·AN)。";
+      const threadText = threadLoadedLength <= 0
+        ? "光杆总长已覆盖夹紧长度，螺纹杆受载区长度为 0。"
+        : `螺纹杆受载区长度 lGew = lK - 光杆总长 = ${fmt(threadLoadedLength, 3)} mm。`;
+      $("note").innerHTML = `算法模式固定为 VDI 2230。${headText} δG = lG/(ES·Ad3)，δM = lM/(EM·AN)，δGM = δG + δM。${typeText} ${threadText}`;
+
+      drawBolt({ d, dh, hh, lK, lG, lM, threadLoadedLength, shankSegments, connectionType });
+    }
+
+    function drawBolt(model) {
+      const svg = $("boltSvg");
+      const parts = [
+        { name: "lSK", length: model.hh, od: model.d * 1.55, color: "#64748b" },
+        ...model.shankSegments.map((seg, i) => ({ name: `l${i + 1}`, length: seg.length, od: seg.od, id: seg.id, color: i % 2 ? "#2563eb" : "#0f766e" })),
+        { name: "lGew", length: model.threadLoadedLength, od: model.d * .92, color: "#c2410c" },
+        { name: "lG", length: model.lG, od: model.d * .92, color: "#7c3aed" },
+        { name: "lM", length: model.lM, od: model.d * .92, color: model.connectionType === "blind" ? "#b45309" : "#475569" }
+      ].filter(part => part.length > 0);
+      const totalLength = parts.reduce((sum, p) => sum + p.length, 0) || 1;
+      const maxOd = Math.max(...parts.map(p => p.od), model.d);
+      const x0 = 55;
+      const usable = 790;
+      const cy = 142;
+      const scaleX = usable / totalLength;
+      const scaleY = 72 / maxOd;
+      let x = x0;
+      const chunks = [];
+
+      chunks.push(`<line x1="45" y1="${cy}" x2="855" y2="${cy}" stroke="#94a3b8" stroke-dasharray="5 5"/>`);
+      parts.forEach(part => {
+        const w = Math.max(7, part.length * scaleX);
+        const h = Math.max(16, part.od * scaleY);
+        const y = cy - h / 2;
+        chunks.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${part.color}" opacity=".86"/>`);
+        chunks.push(`<text x="${x + w / 2}" y="${cy + h / 2 + 20}" text-anchor="middle" font-size="12" fill="#334155">${part.name}</text>`);
+        chunks.push(`<text x="${x + w / 2}" y="${cy - h / 2 - 10}" text-anchor="middle" font-size="12" fill="#334155">${fmt(part.length, 2)} mm</text>`);
+        if (part.id > 0) {
+          const ih = Math.max(4, part.id * scaleY);
+          chunks.push(`<rect x="${x}" y="${cy - ih / 2}" width="${w}" height="${ih}" fill="#f8fafc" opacity=".95"/>`);
+        }
+        x += w;
+      });
+
+      chunks.push(`<line x1="${x0}" y1="235" x2="${x0 + usable}" y2="235" stroke="#475569"/>`);
+      chunks.push(`<path d="M${x0} 235 l8 -5 v10 zM${x0 + usable} 235 l-8 -5 v10 z" fill="#475569"/>`);
+      chunks.push(`<text x="${x0 + usable / 2}" y="258" text-anchor="middle" font-size="13" fill="#334155">示意总长 ${fmt(totalLength, 2)} mm；夹紧长度 lK = ${fmt(model.lK, 2)} mm</text>`);
+      chunks.push(`<text x="55" y="32" font-size="13" fill="#334155">计算分段示意，输入尺寸请结合上方参考图核对</text>`);
+      svg.innerHTML = chunks.join("");
+    }
+
+    function setDiameterAndPitch(d, pitch) {
+      $("nominalDiameter").value = String(d);
+      populatePitches(pitch);
+    }
+
+    function loadSolidExample() {
+      $("connectionType").value = "through";
+      $("headType").value = "external";
+      $("elasticModulus").value = "210000";
+      setDiameterAndPitch(20, 2.5);
+      $("gripLength").value = "54";
+      $("headHeight").value = "16";
+      $("headHole").value = "0";
+      segmentsEl.innerHTML = "";
+      addSegmentRow(24, 20, 0);
+      updateThreadDiameters();
+    }
+
+    function loadHollowExample() {
+      $("connectionType").value = "blind";
+      $("headType").value = "external";
+      $("elasticModulus").value = "210000";
+      setDiameterAndPitch(20, 2.5);
+      $("gripLength").value = "54";
+      $("headHeight").value = "16";
+      $("headHole").value = "6";
+      segmentsEl.innerHTML = "";
+      addSegmentRow(12, 18, 6);
+      addSegmentRow(12, 14, 8);
+      updateThreadDiameters();
+    }
+
+    document.querySelectorAll("input, select").forEach(el => {
+      el.addEventListener("input", calculate);
+      el.addEventListener("change", calculate);
+    });
+    $("nominalDiameter").addEventListener("change", () => populatePitches());
+    $("pitch").addEventListener("change", updateThreadDiameters);
+    $("connectionType").addEventListener("change", () => {
+      updateInternalThreadLength();
+      calculate();
+    });
+    $("addSegment").addEventListener("click", () => {
+      addSegmentRow(num("nominalDiameter") * 0.5, num("nominalDiameter"), 0);
+      calculate();
+    });
+    $("calcBtn").addEventListener("click", calculate);
+    $("exampleSolid").addEventListener("click", loadSolidExample);
+    $("exampleHollow").addEventListener("click", loadHollowExample);
+
+    populateDiameters(20);
+    addSegmentRow(24, 20, 0);
+    updateThreadDiameters();
+  </script>
+</body>
+</html>
