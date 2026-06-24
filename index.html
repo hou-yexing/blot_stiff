@@ -194,7 +194,7 @@
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -360,7 +360,7 @@
   <header>
     <div>
       <h1>螺栓柔度计算器</h1>
-      <p>VDI 2230 拉伸柔度公式核对；弯曲柔度按现有分段惯性矩公式作为参考值。</p>
+      <p>VDI 2230 拉伸柔度校核：标准规格选择、几何分段、贯穿/盲孔连接和公式追溯。</p>
     </div>
     <div class="header-actions">
       <button id="exampleSolid">载入 M20 实心示例</button>
@@ -410,12 +410,6 @@
           <label>夹紧长度 lK [mm]
             <input id="gripLength" type="text" inputmode="decimal" value="54">
           </label>
-          <label>螺栓头厚度 hh [mm]（几何示意）
-            <input id="headHeight" type="text" inputmode="decimal" value="16">
-          </label>
-          <label>光杆/头部示意内孔 dh [mm]
-            <input id="headHole" type="text" inputmode="decimal" value="0">
-          </label>
           <label>外螺纹等效长度 lG [mm]
             <input id="threadEngagementEq" type="text" inputmode="decimal" value="10" readonly>
           </label>
@@ -430,11 +424,26 @@
             <button id="addSegment" type="button">添加分段</button>
           </div>
           <div id="segments"></div>
-          <p class="hint">光杆/颈缩段按圆环截面计算：A = π(d² - dh²)/4，I = π(d⁴ - dh⁴)/64。螺纹受载区长度自动取 max(lK - 光杆总长, 0)。</p>
+          <p class="hint">光杆/颈缩段按圆环截面计算拉伸面积：A = π(d² - dh²)/4。螺纹受载区长度自动取 max(lK - 光杆总长, 0)。</p>
         </div>
 
         <div class="section">
-          <p class="hint">公称直径和螺距来自常用 ISO 公制螺纹规格选项；选定后中径 d₂、小径 d₃ 按 d₂ = d - 0.64952P、d₃ = d - 1.22687P 自动更新。当前 δSK 使用 AN = πd²/4；hh 与 dh 主要用于几何示意和光杆/空心段输入核对。</p>
+          <div class="section-title">
+            <h3>几何示意参数</h3>
+          </div>
+          <div class="grid">
+            <label>螺栓头厚度 hh [mm]
+              <input id="headHeight" type="text" inputmode="decimal" value="16">
+            </label>
+            <label>光杆/头部示意内孔 dh [mm]
+              <input id="headHole" type="text" inputmode="decimal" value="0">
+            </label>
+          </div>
+          <p class="hint">当前 δSK 使用 AN = πd²/4，hh 与 dh 不参与头部拉伸柔度计算；它们用于尺寸图和空心/阶梯光杆核对。</p>
+        </div>
+
+        <div class="section">
+          <p class="hint">公称直径和螺距来自常用 ISO 公制螺纹规格选项；选定后中径 d₂、小径 d₃ 按 d₂ = d - 0.64952P、d₃ = d - 1.22687P 自动更新。</p>
         </div>
       </div>
     </section>
@@ -445,11 +454,6 @@
           <b>拉伸柔度 δS</b>
           <span id="deltaTotal">-</span>
           <small>mm/N</small>
-        </div>
-        <div class="metric">
-          <b>弯曲柔度 βS（参考）</b>
-          <span id="betaTotal">-</span>
-          <small>按现有 l/(E·I) 分段估算</small>
         </div>
         <div class="metric">
           <b>螺栓轴向刚度 cS</b>
@@ -479,9 +483,7 @@
                 <th>外径 [mm]</th>
                 <th>内孔 [mm]</th>
                 <th>面积 [mm²]</th>
-                <th>惯性矩 [mm⁴]</th>
                 <th>δ [mm/N]</th>
-                <th>β [1/(N·mm)]</th>
               </tr>
             </thead>
             <tbody id="resultRows"></tbody>
@@ -496,6 +498,7 @@
               <div>δG = lG / (ES · Ad3)</div>
               <div>δM = lM / (EM · AN)</div>
               <div>δGM = δG + δM</div>
+              <div id="formulaValues">当前数值：-</div>
             </div>
           </div>
         </div>
@@ -544,8 +547,9 @@
 
     function parseNumber(value) {
       const normalized = String(value).trim().replace(",", ".");
+      if (normalized === "") return NaN;
       const parsed = Number(normalized);
-      return Number.isFinite(parsed) ? parsed : 0;
+      return Number.isFinite(parsed) ? parsed : NaN;
     }
 
     function num(id) {
@@ -558,14 +562,6 @@
 
     function area(od, id) {
       return Math.PI * (od ** 2 - id ** 2) / 4;
-    }
-
-    function inertia(od, id) {
-      return Math.PI * (od ** 4 - id ** 4) / 64;
-    }
-
-    function blankIfNull(value, digits = 4) {
-      return value === null ? "-" : fmt(value, digits);
     }
 
     function fmt(value, digits = 4) {
@@ -642,18 +638,16 @@
 
     function pushPart(parts, name, length, od, id, E) {
       const A = area(od, id);
-      const I = inertia(od, id);
-      const valid = length > 0 && od > id && A > 0 && I > 0 && E > 0;
+      const valid = length >= 0 && od > id && id >= 0 && A > 0 && E > 0;
       parts.push({
-        name, length, od, id, A, I,
-        delta: valid ? length / (E * A) : 0,
-        beta: valid ? length / (E * I) : 0,
+        name, length, od, id, A,
+        delta: valid && length > 0 ? length / (E * A) : 0,
         valid
       });
     }
 
-    function pushCustomPart(parts, name, length, od, id, A, I, delta, beta, valid = true) {
-      parts.push({ name, length, od, id, A, I, delta, beta, valid });
+    function pushCustomPart(parts, name, length, od, id, A, delta, valid = true) {
+      parts.push({ name, length, od, id, A, delta, valid });
     }
     function addMessage(messages, level, text) {
       messages.push({ level, text });
@@ -714,17 +708,15 @@
       const baseHeadLength = (headType === "internal" ? 0.4 : 0.5) * d;
       const lHead = baseHeadLength;
       const AN = area(d, 0);
-      const IN = inertia(d, 0);
       const Ad3 = area(d3, 0);
-      const Id3 = inertia(d3, 0);
       const shankSegments = getSegments();
       const shankLength = shankSegments.reduce((sum, item) => sum + (Number.isFinite(item.length) ? item.length : 0), 0);
       const threadLoadedLength = Math.max(lK - shankLength, 0);
       const internalLabel = connectionType === "blind" ? "盲孔内螺纹等效区" : "螺母内螺纹等效区";
       const validationMessages = validateInputs(E, EM, d, d3, lK, hh, dh, shankSegments, shankLength);
       renderValidation(validationMessages);
-      const validHead = lHead > 0 && AN > 0 && IN > 0 && E > 0;
-      const validThread = d3 > 0 && Ad3 > 0 && Id3 > 0 && E > 0;
+      const validHead = lHead > 0 && AN > 0 && E > 0;
+      const validThread = d3 > 0 && Ad3 > 0 && E > 0;
       const validInternal = lM > 0 && AN > 0 && EM > 0;
 
       pushCustomPart(
@@ -734,9 +726,7 @@
         d,
         0,
         AN,
-        IN,
         validHead ? lHead / (E * AN) : 0,
-        validHead ? lHead / (E * IN) : 0,
         validHead
       );
       shankSegments.forEach(seg => pushPart(parts, seg.name, seg.length, seg.od, seg.id, E));
@@ -747,9 +737,7 @@
         d3,
         0,
         Ad3,
-        Id3,
         validThread && threadLoadedLength > 0 ? threadLoadedLength / (E * Ad3) : 0,
-        validThread && threadLoadedLength > 0 ? threadLoadedLength / (E * Id3) : 0,
         validThread && threadLoadedLength >= 0
       );
       pushCustomPart(
@@ -759,9 +747,7 @@
         d3,
         0,
         Ad3,
-        Id3,
         validThread && lG > 0 ? lG / (E * Ad3) : 0,
-        validThread && lG > 0 ? lG / (E * Id3) : 0,
         validThread && lG > 0
       );
       pushCustomPart(
@@ -771,18 +757,24 @@
         d,
         0,
         AN,
-        null,
         validInternal ? lM / (EM * AN) : 0,
-        0,
         validInternal
       );
+      const hasErrors = validationMessages.some(item => item.level === "error");
+      if (hasErrors) {
+        $("deltaTotal").textContent = "-";
+        $("axialStiffness").textContent = "-";
+        $("resultRows").innerHTML = '<tr><td colspan="6">输入无效，结果不可用。</td></tr>';
+        $("formulaValues").textContent = "当前数值：输入无效，无法代入计算。";
+        $("note").innerHTML = "输入存在错误，请修正上方提示后重新计算。";
+        $("boltSvg").innerHTML = '<text x="450" y="155" text-anchor="middle" font-size="14" fill="#b42318">输入无效，无法生成计算分段示意</text>';
+        return;
+      }
 
       const deltaTotal = parts.reduce((sum, item) => sum + item.delta, 0);
-      const betaTotal = parts.reduce((sum, item) => sum + item.beta, 0);
       const stiffness = deltaTotal > 0 ? 1 / deltaTotal : 0;
 
       $("deltaTotal").textContent = fmt(deltaTotal);
-      $("betaTotal").textContent = fmt(betaTotal);
       $("axialStiffness").textContent = fmt(stiffness, 2);
 
       $("resultRows").innerHTML = parts.map(part => `
@@ -791,13 +783,10 @@
           <td>${fmt(part.length, 3)}</td>
           <td>${fmt(part.od, 3)}</td>
           <td>${fmt(part.id, 3)}</td>
-          <td>${blankIfNull(part.A, 3)}</td>
-          <td>${blankIfNull(part.I, 3)}</td>
+          <td>${fmt(part.A, 3)}</td>
           <td>${fmt(part.delta)}</td>
-          <td>${fmt(part.beta)}</td>
         </tr>
       `).join("");
-
       const typeText = connectionType === "blind"
         ? "当前为盲孔连接，lM = 0.33d，EM 取内螺纹材料模量。"
         : "当前为贯穿连接，lM = 0.4d，EM 通常取螺母/内螺纹材料模量。";
@@ -807,7 +796,8 @@
       const threadText = threadLoadedLength <= 0
         ? "光杆总长已覆盖夹紧长度，螺纹杆受载区 lGew = 0。"
         : `螺纹杆受载区长度 lGew = lK - 光杆总长 = ${fmt(threadLoadedLength, 3)} mm。`;
-      $("note").innerHTML = `算法模式固定为 VDI 2230。${headText} δG = lG/(ES·Ad3)，δM = lM/(EM·AN)，δGM = δG + δM。${typeText} ${threadText} βS 为按现有 l/(E·I) 分段估算的参考值；hh 与 dh 主要用于几何示意和空心/阶梯光杆核对。`;
+      $("formulaValues").textContent = `当前数值：lG = 0.5 × ${fmt(d, 3)} = ${fmt(lG, 3)} mm；lM = ${connectionType === "blind" ? "0.33" : "0.4"} × ${fmt(d, 3)} = ${fmt(lM, 3)} mm；lGew = max(${fmt(lK, 3)} - ${fmt(shankLength, 3)}, 0) = ${fmt(threadLoadedLength, 3)} mm。`;
+      $("note").innerHTML = `算法模式固定为 VDI 2230。${headText} δG = lG/(ES·Ad3)，δM = lM/(EM·AN)，δGM = δG + δM。${typeText} ${threadText} hh 与 dh 主要用于几何示意和空心/阶梯光杆核对。`;
 
       drawBolt({ d, dh, hh, lK, lHead, lG, lM, threadLoadedLength, shankSegments, connectionType });
     }
