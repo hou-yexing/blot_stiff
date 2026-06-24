@@ -185,6 +185,10 @@
       line-height: 1.55;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     .workspace {
       display: grid;
       grid-template-rows: auto auto auto 1fr;
@@ -378,12 +382,13 @@
             <select id="connectionType">
               <option value="through">贯穿连接</option>
               <option value="blind">盲孔连接</option>
+              <option value="studBlind">双头螺柱（盲孔连接）</option>
             </select>
           </label>
           <label>算法模式
             <input value="VDI 2230" readonly>
           </label>
-          <label>螺栓头类型
+          <label class="bolt-only">螺栓头类型
             <select id="headType">
               <option value="external">外六角螺栓头</option>
               <option value="internal">内六角螺栓头</option>
@@ -392,30 +397,75 @@
           <label>弹性模量 E [N/mm²]
             <input id="elasticModulus" type="text" inputmode="decimal" value="210000">
           </label>
-          <label>内螺纹材料模量 EM [N/mm²]
+          <label class="ordinary-only">内螺纹材料模量 EM [N/mm²]
             <input id="internalElasticModulus" type="text" inputmode="decimal" value="210000">
           </label>
-          <label>公称直径 d
+          <label class="ordinary-only">公称直径 d
             <select id="nominalDiameter"></select>
           </label>
-          <label>螺距 P [mm]
+          <label class="ordinary-only">螺距 P [mm]
             <select id="pitch"></select>
           </label>
-          <label>中径 d₂ [mm]
+          <label class="ordinary-only">中径 d₂ [mm]
             <input id="pitchDiameter" type="text" inputmode="decimal" readonly>
           </label>
-          <label>小径 d₃ [mm]
+          <label class="ordinary-only">小径 d₃ [mm]
             <input id="minorDiameter" type="text" inputmode="decimal" readonly>
           </label>
           <label>夹紧长度 lK [mm]
             <input id="gripLength" type="text" inputmode="decimal" value="54">
           </label>
-          <label>外螺纹等效长度 lG [mm]
+          <label class="ordinary-only">外螺纹等效长度 lG [mm]
             <input id="threadEngagementEq" type="text" inputmode="decimal" value="10" readonly>
           </label>
-          <label>内螺纹等效长度 lM [mm]
+          <label class="ordinary-only">内螺纹等效长度 lM [mm]
             <input id="internalThreadEq" type="text" inputmode="decimal" value="8" readonly>
           </label>
+        </div>
+
+        <div class="section hidden" id="studThreadSection">
+          <div class="section-title">
+            <h3>双头螺柱两端螺纹规格</h3>
+          </div>
+          <div class="grid">
+            <label>旋入端公称直径 d_in
+              <select id="studInsertDiameter"></select>
+            </label>
+            <label>旋入端螺距 P_in [mm]
+              <select id="studInsertPitch"></select>
+            </label>
+            <label>旋入端中径 d₂_in [mm]
+              <input id="studInsertPitchDiameter" type="text" inputmode="decimal" readonly>
+            </label>
+            <label>旋入端小径 d₃_in [mm]
+              <input id="studInsertMinorDiameter" type="text" inputmode="decimal" readonly>
+            </label>
+            <label>旋入端盲孔材料模量 EM_in [N/mm²]
+              <input id="studInsertElasticModulus" type="text" inputmode="decimal" value="210000">
+            </label>
+            <label>旋入端 lG_in / lM_in [mm]
+              <input id="studInsertEqLengths" type="text" inputmode="decimal" readonly>
+            </label>
+            <label>螺母端公称直径 d_nut
+              <select id="studNutDiameter"></select>
+            </label>
+            <label>螺母端螺距 P_nut [mm]
+              <select id="studNutPitch"></select>
+            </label>
+            <label>螺母端中径 d₂_nut [mm]
+              <input id="studNutPitchDiameter" type="text" inputmode="decimal" readonly>
+            </label>
+            <label>螺母端小径 d₃_nut [mm]
+              <input id="studNutMinorDiameter" type="text" inputmode="decimal" readonly>
+            </label>
+            <label>螺母端材料模量 EM_nut [N/mm²]
+              <input id="studNutElasticModulus" type="text" inputmode="decimal" value="210000">
+            </label>
+            <label>螺母端 lG_nut / lM_nut [mm]
+              <input id="studNutEqLengths" type="text" inputmode="decimal" readonly>
+            </label>
+          </div>
+          <p class="hint">双头螺柱模式下，旋入端按盲孔拧入 lM_in = 0.33d_in，螺母端按螺母固定 lM_nut = 0.4d_nut，两端外螺纹等效长度均取 lG = 0.5d。</p>
         </div>
 
         <div class="section">
@@ -424,10 +474,10 @@
             <button id="addSegment" type="button">添加分段</button>
           </div>
           <div id="segments"></div>
-          <p class="hint">光杆/颈缩段按圆环截面计算拉伸面积：A = π(d² - dh²)/4。螺纹受载区长度自动取 max(lK - 光杆总长, 0)。</p>
+          <p class="hint">光杆/颈缩段按圆环截面计算拉伸面积：A = π(d² - dh²)/4。普通螺栓模式下螺纹受载区长度取 max(lK - 光杆总长, 0)；双头螺柱模式下该分段作为中间杆段计算。</p>
         </div>
 
-        <div class="section">
+        <div class="section bolt-only">
           <div class="section-title">
             <h3>几何示意参数</h3>
           </div>
@@ -462,7 +512,7 @@
         </div>
       </div>
 
-      <div class="reference-wrap">
+      <div class="reference-wrap bolt-only">
         <p class="reference-title">连接尺寸参考图</p>
         <img src="assets/bolt-connection-diagram.png" alt="螺栓连接尺寸示意图">
       </div>
@@ -491,7 +541,7 @@
           <div class="note" id="note"></div>
           <div class="formula-box">
             <h3>公式说明 / 计算过程</h3>
-            <div class="formula-grid">
+            <div class="formula-grid" id="formulaGrid">
               <div>δSK = lSK / (ES · AN)</div>
               <div>δR = Σ lRi / (ES · ARi)</div>
               <div>δGew = lGew / (ES · Ad3)</div>
@@ -576,21 +626,33 @@
       return `M${String(d).replace(".", ".")}`;
     }
 
-    function populateDiameters(selected = 20) {
-      $("nominalDiameter").innerHTML = metricThreads.map(item => {
+    function isStudMode() {
+      return $("connectionType").value === "studBlind";
+    }
+
+    function populateDiameterSelect(id, selected = 20) {
+      $(id).innerHTML = metricThreads.map(item => {
         const value = String(item.d);
         return `<option value="${value}"${item.d === selected ? " selected" : ""}>${optionLabelD(item.d)}</option>`;
       }).join("");
+    }
+
+    function populatePitchSelect(diameterId, pitchId, preferred) {
+      const d = num(diameterId);
+      const spec = metricThreads.find(item => item.d === d) || metricThreads[0];
+      const selected = preferred && spec.pitches.includes(preferred) ? preferred : spec.pitches[0];
+      $(pitchId).innerHTML = spec.pitches.map(pitch => {
+        return `<option value="${pitch}"${pitch === selected ? " selected" : ""}>${pitch}</option>`;
+      }).join("");
+    }
+
+    function populateDiameters(selected = 20) {
+      populateDiameterSelect("nominalDiameter", selected);
       populatePitches();
     }
 
     function populatePitches(preferred) {
-      const d = num("nominalDiameter");
-      const spec = metricThreads.find(item => item.d === d) || metricThreads[0];
-      const selected = preferred && spec.pitches.includes(preferred) ? preferred : spec.pitches[0];
-      $("pitch").innerHTML = spec.pitches.map(pitch => {
-        return `<option value="${pitch}"${pitch === selected ? " selected" : ""}>${pitch}</option>`;
-      }).join("");
+      populatePitchSelect("nominalDiameter", "pitch", preferred);
       updateThreadDiameters();
     }
 
@@ -604,10 +666,40 @@
       calculate();
     }
 
+    function populateStudThreadSelects() {
+      populateDiameterSelect("studInsertDiameter", 20);
+      populateDiameterSelect("studNutDiameter", 20);
+      populatePitchSelect("studInsertDiameter", "studInsertPitch", 2.5);
+      populatePitchSelect("studNutDiameter", "studNutPitch", 2.5);
+      updateStudThreadDiameters();
+    }
+
+    function updateStudThreadDiameters() {
+      const dIn = num("studInsertDiameter");
+      const pIn = num("studInsertPitch");
+      const dNut = num("studNutDiameter");
+      const pNut = num("studNutPitch");
+      setInput("studInsertPitchDiameter", dIn - 0.64952 * pIn);
+      setInput("studInsertMinorDiameter", dIn - 1.22687 * pIn);
+      setInput("studNutPitchDiameter", dNut - 0.64952 * pNut);
+      setInput("studNutMinorDiameter", dNut - 1.22687 * pNut);
+      $("studInsertEqLengths").value = `lG ${fmt(0.5 * dIn, 3)} / lM ${fmt(0.33 * dIn, 3)}`;
+      $("studNutEqLengths").value = `lG ${fmt(0.5 * dNut, 3)} / lM ${fmt(0.4 * dNut, 3)}`;
+      calculate();
+    }
+
     function updateInternalThreadLength() {
       const d = num("nominalDiameter");
       const factor = $("connectionType").value === "blind" ? 0.33 : 0.4;
       setInput("internalThreadEq", factor * d);
+    }
+
+    function updateModeView() {
+      const stud = isStudMode();
+      document.querySelectorAll(".ordinary-only").forEach(el => el.classList.toggle("hidden", stud));
+      document.querySelectorAll(".bolt-only").forEach(el => el.classList.toggle("hidden", stud));
+      $("studThreadSection").classList.toggle("hidden", !stud);
+      calculate();
     }
 
     function addSegmentRow(length = 24, diameter = 20, hole = 0) {
@@ -677,6 +769,28 @@
       return messages;
     }
 
+    function validateStudInputs(model, shankSegments) {
+      const messages = [];
+      if (!(model.E > 0)) addMessage(messages, "error", "弹性模量 ES 必须大于 0。");
+      if (!(model.EMIn > 0)) addMessage(messages, "error", "旋入端盲孔材料模量 EM_in 必须大于 0。");
+      if (!(model.EMNut > 0)) addMessage(messages, "error", "螺母端材料模量 EM_nut 必须大于 0。");
+      if (!(model.dIn > 0)) addMessage(messages, "error", "旋入端公称直径 d_in 必须大于 0。");
+      if (!(model.d3In > 0)) addMessage(messages, "error", "旋入端小径 d3_in 必须大于 0。");
+      if (!(model.dNut > 0)) addMessage(messages, "error", "螺母端公称直径 d_nut 必须大于 0。");
+      if (!(model.d3Nut > 0)) addMessage(messages, "error", "螺母端小径 d3_nut 必须大于 0。");
+      if (!(model.lK >= 0)) addMessage(messages, "error", "夹紧长度 lK 不能为负数。");
+      if (Number.isFinite(model.dh) && model.dh < 0) addMessage(messages, "error", "示意内孔 dh 不能为负数。");
+
+      shankSegments.forEach((seg, index) => {
+        const label = `中间杆段 ${index + 1}`;
+        if (!(seg.length >= 0)) addMessage(messages, "error", `${label} 的长度不能为负数或空值。`);
+        if (!(seg.od > 0)) addMessage(messages, "error", `${label} 的外径必须大于 0。`);
+        if (!(seg.id >= 0)) addMessage(messages, "error", `${label} 的内孔不能为负数或空值。`);
+        if (seg.od <= seg.id) addMessage(messages, "error", `${label} 的外径必须大于内孔。`);
+      });
+      return messages;
+    }
+
     function renderValidation(messages) {
       const box = $("validationMessages");
       if (!messages.length) {
@@ -691,7 +805,46 @@
       box.innerHTML = `<strong>${level === "error" ? "输入错误" : level === "warning" ? "输入警告" : "提示"}</strong><br>${messages.map(item => `• ${item.text}`).join("<br>")}`;
     }
 
+    function showInvalidState() {
+      $("deltaTotal").textContent = "-";
+      $("axialStiffness").textContent = "-";
+      $("resultRows").innerHTML = '<tr><td colspan="6">输入无效，结果不可用。</td></tr>';
+      $("formulaValues").textContent = "当前数值：输入无效，无法代入计算。";
+      $("note").innerHTML = "输入存在错误，请修正上方提示后重新计算。";
+      $("boltSvg").innerHTML = '<text x="450" y="155" text-anchor="middle" font-size="14" fill="#b42318">输入无效，无法生成计算分段示意</text>';
+    }
+
+    function renderResult(parts) {
+      const deltaTotal = parts.reduce((sum, item) => sum + item.delta, 0);
+      const stiffness = deltaTotal > 0 ? 1 / deltaTotal : 0;
+
+      $("deltaTotal").textContent = fmt(deltaTotal);
+      $("axialStiffness").textContent = fmt(stiffness, 2);
+      $("resultRows").innerHTML = parts.map(part => `
+        <tr>
+          <td>${part.valid ? "" : "<span class='warn'>!</span> "}${part.name}</td>
+          <td>${fmt(part.length, 3)}</td>
+          <td>${fmt(part.od, 3)}</td>
+          <td>${fmt(part.id, 3)}</td>
+          <td>${fmt(part.A, 3)}</td>
+          <td>${fmt(part.delta)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderFormula(lines, values) {
+      $("formulaGrid").innerHTML = `${lines.map(line => `<div>${line}</div>`).join("")}<div id="formulaValues">${values}</div>`;
+    }
+
     function calculate() {
+      if (isStudMode()) {
+        calculateStud();
+      } else {
+        calculateBolt();
+      }
+    }
+
+    function calculateBolt() {
       const E = num("elasticModulus");
       const EM = num("internalElasticModulus");
       const d = num("nominalDiameter");
@@ -762,31 +915,11 @@
       );
       const hasErrors = validationMessages.some(item => item.level === "error");
       if (hasErrors) {
-        $("deltaTotal").textContent = "-";
-        $("axialStiffness").textContent = "-";
-        $("resultRows").innerHTML = '<tr><td colspan="6">输入无效，结果不可用。</td></tr>';
-        $("formulaValues").textContent = "当前数值：输入无效，无法代入计算。";
-        $("note").innerHTML = "输入存在错误，请修正上方提示后重新计算。";
-        $("boltSvg").innerHTML = '<text x="450" y="155" text-anchor="middle" font-size="14" fill="#b42318">输入无效，无法生成计算分段示意</text>';
+        showInvalidState();
         return;
       }
 
-      const deltaTotal = parts.reduce((sum, item) => sum + item.delta, 0);
-      const stiffness = deltaTotal > 0 ? 1 / deltaTotal : 0;
-
-      $("deltaTotal").textContent = fmt(deltaTotal);
-      $("axialStiffness").textContent = fmt(stiffness, 2);
-
-      $("resultRows").innerHTML = parts.map(part => `
-        <tr>
-          <td>${part.valid ? "" : "<span class='warn'>!</span> "}${part.name}</td>
-          <td>${fmt(part.length, 3)}</td>
-          <td>${fmt(part.od, 3)}</td>
-          <td>${fmt(part.id, 3)}</td>
-          <td>${fmt(part.A, 3)}</td>
-          <td>${fmt(part.delta)}</td>
-        </tr>
-      `).join("");
+      renderResult(parts);
       const typeText = connectionType === "blind"
         ? "当前为盲孔连接，lM = 0.33d，EM 取内螺纹材料模量。"
         : "当前为贯穿连接，lM = 0.4d，EM 通常取螺母/内螺纹材料模量。";
@@ -796,10 +929,107 @@
       const threadText = threadLoadedLength <= 0
         ? "光杆总长已覆盖夹紧长度，螺纹杆受载区 lGew = 0。"
         : `螺纹杆受载区长度 lGew = lK - 光杆总长 = ${fmt(threadLoadedLength, 3)} mm。`;
-      $("formulaValues").textContent = `当前数值：lG = 0.5 × ${fmt(d, 3)} = ${fmt(lG, 3)} mm；lM = ${connectionType === "blind" ? "0.33" : "0.4"} × ${fmt(d, 3)} = ${fmt(lM, 3)} mm；lGew = max(${fmt(lK, 3)} - ${fmt(shankLength, 3)}, 0) = ${fmt(threadLoadedLength, 3)} mm。`;
+      renderFormula(
+        [
+          "δSK = lSK / (ES · AN)",
+          "δR = Σ lRi / (ES · ARi)",
+          "δGew = lGew / (ES · Ad3)",
+          "δG = lG / (ES · Ad3)",
+          "δM = lM / (EM · AN)",
+          "δGM = δG + δM"
+        ],
+        `当前数值：lG = 0.5 × ${fmt(d, 3)} = ${fmt(lG, 3)} mm；lM = ${connectionType === "blind" ? "0.33" : "0.4"} × ${fmt(d, 3)} = ${fmt(lM, 3)} mm；lGew = max(${fmt(lK, 3)} - ${fmt(shankLength, 3)}, 0) = ${fmt(threadLoadedLength, 3)} mm。`
+      );
       $("note").innerHTML = `算法模式固定为 VDI 2230。${headText} δG = lG/(ES·Ad3)，δM = lM/(EM·AN)，δGM = δG + δM。${typeText} ${threadText} hh 与 dh 主要用于几何示意和空心/阶梯光杆核对。`;
 
       drawBolt({ d, dh, hh, lK, lHead, lG, lM, threadLoadedLength, shankSegments, connectionType });
+    }
+
+    function calculateStud() {
+      const model = {
+        E: num("elasticModulus"),
+        EMIn: num("studInsertElasticModulus"),
+        EMNut: num("studNutElasticModulus"),
+        dIn: num("studInsertDiameter"),
+        d3In: num("studInsertMinorDiameter"),
+        dNut: num("studNutDiameter"),
+        d3Nut: num("studNutMinorDiameter"),
+        lK: num("gripLength"),
+        dh: num("headHole")
+      };
+      model.lGIn = 0.5 * model.dIn;
+      model.lMIn = 0.33 * model.dIn;
+      model.lGNut = 0.5 * model.dNut;
+      model.lMNut = 0.4 * model.dNut;
+      model.AIn = area(model.dIn, 0);
+      model.ANut = area(model.dNut, 0);
+      model.Ad3In = area(model.d3In, 0);
+      model.Ad3Nut = area(model.d3Nut, 0);
+      const shankSegments = getSegments();
+      const validationMessages = validateStudInputs(model, shankSegments);
+      renderValidation(validationMessages);
+
+      const parts = [];
+      pushCustomPart(
+        parts,
+        "旋入端外螺纹小径柔度 δG_in",
+        model.lGIn,
+        model.d3In,
+        0,
+        model.Ad3In,
+        model.E > 0 && model.Ad3In > 0 ? model.lGIn / (model.E * model.Ad3In) : 0,
+        model.E > 0 && model.Ad3In > 0 && model.lGIn > 0
+      );
+      pushCustomPart(
+        parts,
+        "旋入端盲孔内螺纹柔度 δM_in",
+        model.lMIn,
+        model.dIn,
+        0,
+        model.AIn,
+        model.EMIn > 0 && model.AIn > 0 ? model.lMIn / (model.EMIn * model.AIn) : 0,
+        model.EMIn > 0 && model.AIn > 0 && model.lMIn > 0
+      );
+      shankSegments.forEach(seg => pushPart(parts, seg.name.replace("光杆", "中间杆"), seg.length, seg.od, seg.id, model.E));
+      pushCustomPart(
+        parts,
+        "螺母端外螺纹小径柔度 δG_nut",
+        model.lGNut,
+        model.d3Nut,
+        0,
+        model.Ad3Nut,
+        model.E > 0 && model.Ad3Nut > 0 ? model.lGNut / (model.E * model.Ad3Nut) : 0,
+        model.E > 0 && model.Ad3Nut > 0 && model.lGNut > 0
+      );
+      pushCustomPart(
+        parts,
+        "螺母端内螺纹柔度 δM_nut",
+        model.lMNut,
+        model.dNut,
+        0,
+        model.ANut,
+        model.EMNut > 0 && model.ANut > 0 ? model.lMNut / (model.EMNut * model.ANut) : 0,
+        model.EMNut > 0 && model.ANut > 0 && model.lMNut > 0
+      );
+
+      if (validationMessages.some(item => item.level === "error")) {
+        showInvalidState();
+        return;
+      }
+
+      renderResult(parts);
+      renderFormula(
+        [
+          "δR = Σ lRi / (ES · ARi)",
+          "δG_in = lG_in / (ES · Ad3_in)",
+          "δM_in = lM_in / (EM_in · AN_in)",
+          "δG_nut = lG_nut / (ES · Ad3_nut)",
+          "δM_nut = lM_nut / (EM_nut · AN_nut)"
+        ],
+        `当前数值：lG_in = 0.5 × ${fmt(model.dIn, 3)} = ${fmt(model.lGIn, 3)} mm；lM_in = 0.33 × ${fmt(model.dIn, 3)} = ${fmt(model.lMIn, 3)} mm；lG_nut = 0.5 × ${fmt(model.dNut, 3)} = ${fmt(model.lGNut, 3)} mm；lM_nut = 0.4 × ${fmt(model.dNut, 3)} = ${fmt(model.lMNut, 3)} mm。`
+      );
+      $("note").innerHTML = "算法模式固定为 VDI 2230。双头螺柱模式不计算螺栓头部 δSK；旋入端按盲孔拧入，螺母端按螺母固定，两端螺纹规格和内螺纹材料模量分别计算。";
+      drawStud({ ...model, shankSegments });
     }
 
     function drawBolt(model) {
@@ -843,6 +1073,47 @@
       svg.innerHTML = chunks.join("");
     }
 
+    function drawStud(model) {
+      const svg = $("boltSvg");
+      const parts = [
+        { name: "lG_in", length: model.lGIn, od: model.dIn * .92, color: "#b45309" },
+        { name: "lM_in", length: model.lMIn, od: model.dIn, color: "#92400e" },
+        ...model.shankSegments.map((seg, i) => ({ name: `l${i + 1}`, length: seg.length, od: seg.od, id: seg.id, color: i % 2 ? "#2563eb" : "#0f766e" })),
+        { name: "lG_nut", length: model.lGNut, od: model.dNut * .92, color: "#7c3aed" },
+        { name: "lM_nut", length: model.lMNut, od: model.dNut, color: "#475569" }
+      ].filter(part => part.length > 0);
+      const totalLength = parts.reduce((sum, p) => sum + p.length, 0) || 1;
+      const maxOd = Math.max(...parts.map(p => p.od), model.dIn, model.dNut);
+      const x0 = 55;
+      const usable = 790;
+      const cy = 142;
+      const scaleX = usable / totalLength;
+      const scaleY = 72 / maxOd;
+      let x = x0;
+      const chunks = [];
+
+      chunks.push(`<line x1="45" y1="${cy}" x2="855" y2="${cy}" stroke="#94a3b8" stroke-dasharray="5 5"/>`);
+      parts.forEach(part => {
+        const w = Math.max(7, part.length * scaleX);
+        const h = Math.max(16, part.od * scaleY);
+        const y = cy - h / 2;
+        chunks.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${part.color}" opacity=".86"/>`);
+        chunks.push(`<text x="${x + w / 2}" y="${cy + h / 2 + 20}" text-anchor="middle" font-size="12" fill="#334155">${part.name}</text>`);
+        chunks.push(`<text x="${x + w / 2}" y="${cy - h / 2 - 10}" text-anchor="middle" font-size="12" fill="#334155">${fmt(part.length, 2)} mm</text>`);
+        if (part.id > 0) {
+          const ih = Math.max(4, part.id * scaleY);
+          chunks.push(`<rect x="${x}" y="${cy - ih / 2}" width="${w}" height="${ih}" fill="#f8fafc" opacity=".95"/>`);
+        }
+        x += w;
+      });
+
+      chunks.push(`<line x1="${x0}" y1="235" x2="${x0 + usable}" y2="235" stroke="#475569"/>`);
+      chunks.push(`<path d="M${x0} 235 l8 -5 v10 zM${x0 + usable} 235 l-8 -5 v10 z" fill="#475569"/>`);
+      chunks.push(`<text x="${x0 + usable / 2}" y="258" text-anchor="middle" font-size="13" fill="#334155">示意总长 ${fmt(totalLength, 2)} mm；夹紧长度 lK = ${fmt(model.lK, 2)} mm</text>`);
+      chunks.push(`<text x="55" y="32" font-size="13" fill="#334155">双头螺柱分段示意；旋入端按盲孔，螺母端按螺母固定</text>`);
+      svg.innerHTML = chunks.join("");
+    }
+
     function setDiameterAndPitch(d, pitch) {
       $("nominalDiameter").value = String(d);
       populatePitches(pitch);
@@ -852,12 +1123,14 @@
       $("connectionType").value = "through";
       $("headType").value = "external";
       $("elasticModulus").value = "210000";
+      $("internalElasticModulus").value = "210000";
       setDiameterAndPitch(20, 2.5);
       $("gripLength").value = "54";
       $("headHeight").value = "16";
       $("headHole").value = "0";
       segmentsEl.innerHTML = "";
       addSegmentRow(24, 20, 0);
+      updateModeView();
       updateThreadDiameters();
     }
 
@@ -865,6 +1138,7 @@
       $("connectionType").value = "blind";
       $("headType").value = "external";
       $("elasticModulus").value = "210000";
+      $("internalElasticModulus").value = "210000";
       setDiameterAndPitch(20, 2.5);
       $("gripLength").value = "54";
       $("headHeight").value = "16";
@@ -872,6 +1146,7 @@
       segmentsEl.innerHTML = "";
       addSegmentRow(12, 18, 6);
       addSegmentRow(12, 14, 8);
+      updateModeView();
       updateThreadDiameters();
     }
 
@@ -883,10 +1158,21 @@
     $("pitch").addEventListener("change", updateThreadDiameters);
     $("connectionType").addEventListener("change", () => {
       updateInternalThreadLength();
-      calculate();
+      updateModeView();
     });
+    $("studInsertDiameter").addEventListener("change", () => {
+      populatePitchSelect("studInsertDiameter", "studInsertPitch");
+      updateStudThreadDiameters();
+    });
+    $("studInsertPitch").addEventListener("change", updateStudThreadDiameters);
+    $("studNutDiameter").addEventListener("change", () => {
+      populatePitchSelect("studNutDiameter", "studNutPitch");
+      updateStudThreadDiameters();
+    });
+    $("studNutPitch").addEventListener("change", updateStudThreadDiameters);
     $("addSegment").addEventListener("click", () => {
-      addSegmentRow(num("nominalDiameter") * 0.5, num("nominalDiameter"), 0);
+      const defaultDiameter = isStudMode() ? num("studNutDiameter") : num("nominalDiameter");
+      addSegmentRow(defaultDiameter * 0.5, defaultDiameter, 0);
       calculate();
     });
     $("calcBtn").addEventListener("click", calculate);
@@ -894,7 +1180,9 @@
     $("exampleHollow").addEventListener("click", loadHollowExample);
 
     populateDiameters(20);
+    populateStudThreadSelects();
     addSegmentRow(24, 20, 0);
+    updateModeView();
     updateThreadDiameters();
   </script>
 </body>
