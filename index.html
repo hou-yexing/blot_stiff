@@ -446,6 +446,9 @@
             <label>旋入端 lG_in / lM_in [mm]
               <input id="studInsertEqLengths" type="text" inputmode="decimal" readonly>
             </label>
+            <label>旋入端空余螺纹 l_free_in [mm]
+              <input id="studInsertFreeThread" type="text" inputmode="decimal" value="15">
+            </label>
             <label>螺母端公称直径 d_nut
               <select id="studNutDiameter"></select>
             </label>
@@ -464,8 +467,12 @@
             <label>螺母端 lG_nut / lM_nut [mm]
               <input id="studNutEqLengths" type="text" inputmode="decimal" readonly>
             </label>
+            <label>螺母端空余螺纹 l_free_nut [mm]
+              <input id="studNutFreeThread" type="text" inputmode="decimal" value="15">
+            </label>
           </div>
           <p class="hint">双头螺柱模式下，旋入端按盲孔拧入 lM_in = 0.33d_in，螺母端按螺母固定 lM_nut = 0.4d_nut，两端外螺纹等效长度均取 lG = 0.5d。</p>
+          <p class="hint" id="studGripCheck">夹紧长度组成：-</p>
         </div>
 
         <div class="section">
@@ -772,6 +779,7 @@
 
     function validateStudInputs(model, shankSegments) {
       const messages = [];
+      const tolerance = 0.001;
       if (!(model.E > 0)) addMessage(messages, "error", "弹性模量 ES 必须大于 0。");
       if (!(model.EMIn > 0)) addMessage(messages, "error", "旋入端盲孔材料模量 EM_in 必须大于 0。");
       if (!(model.EMNut > 0)) addMessage(messages, "error", "螺母端材料模量 EM_nut 必须大于 0。");
@@ -780,6 +788,8 @@
       if (!(model.dNut > 0)) addMessage(messages, "error", "螺母端公称直径 d_nut 必须大于 0。");
       if (!(model.d3Nut > 0)) addMessage(messages, "error", "螺母端小径 d3_nut 必须大于 0。");
       if (!(model.lK >= 0)) addMessage(messages, "error", "夹紧长度 lK 不能为负数。");
+      if (!(model.lFreeIn >= 0)) addMessage(messages, "error", "旋入端空余螺纹长度 l_free_in 不能为负数或空值。");
+      if (!(model.lFreeNut >= 0)) addMessage(messages, "error", "螺母端空余螺纹长度 l_free_nut 不能为负数或空值。");
       if (Number.isFinite(model.dh) && model.dh < 0) addMessage(messages, "error", "示意内孔 dh 不能为负数。");
 
       shankSegments.forEach((seg, index) => {
@@ -789,6 +799,9 @@
         if (!(seg.id >= 0)) addMessage(messages, "error", `${label} 的内孔不能为负数或空值。`);
         if (seg.od <= seg.id) addMessage(messages, "error", `${label} 的外径必须大于内孔。`);
       });
+      if (Number.isFinite(model.gripComposition) && Number.isFinite(model.lK) && Math.abs(model.gripDelta) > tolerance) {
+        addMessage(messages, "error", `双头螺柱夹紧长度组成不等于 lK：l_free_in + ΣlRi + l_free_nut = ${fmt(model.gripComposition, 3)} mm，lK = ${fmt(model.lK, 3)} mm，差值 = ${fmt(model.gripDelta, 3)} mm。`);
+      }
       return messages;
     }
 
@@ -956,6 +969,8 @@
         dNut: num("studNutDiameter"),
         d3Nut: num("studNutMinorDiameter"),
         lK: num("gripLength"),
+        lFreeIn: num("studInsertFreeThread"),
+        lFreeNut: num("studNutFreeThread"),
         dh: num("headHole")
       };
       model.lGIn = 0.5 * model.dIn;
@@ -967,8 +982,13 @@
       model.Ad3In = area(model.d3In, 0);
       model.Ad3Nut = area(model.d3Nut, 0);
       const shankSegments = getSegments();
+      const shankLength = shankSegments.reduce((sum, item) => sum + (Number.isFinite(item.length) ? item.length : 0), 0);
+      model.gripComposition = model.lFreeIn + shankLength + model.lFreeNut;
+      model.gripDelta = model.gripComposition - model.lK;
       const validationMessages = validateStudInputs(model, shankSegments);
       renderValidation(validationMessages);
+      const gripOk = Number.isFinite(model.gripDelta) && Math.abs(model.gripDelta) <= 0.001;
+      $("studGripCheck").textContent = `夹紧长度组成：l_free_in ${fmt(model.lFreeIn, 3)} + ΣlRi ${fmt(shankLength, 3)} + l_free_nut ${fmt(model.lFreeNut, 3)} = ${fmt(model.gripComposition, 3)} mm；lK = ${fmt(model.lK, 3)} mm；差值 = ${fmt(model.gripDelta, 3)} mm；${gripOk ? "校核通过" : "校核未通过"}`;
 
       const parts = [];
       pushCustomPart(
@@ -991,7 +1011,27 @@
         model.EMIn > 0 && model.AIn > 0 ? model.lMIn / (model.EMIn * model.AIn) : 0,
         model.EMIn > 0 && model.AIn > 0 && model.lMIn > 0
       );
+      pushCustomPart(
+        parts,
+        "旋入端空余螺纹柔度 δfree_in",
+        model.lFreeIn,
+        model.d3In,
+        0,
+        model.Ad3In,
+        model.E > 0 && model.Ad3In > 0 && model.lFreeIn > 0 ? model.lFreeIn / (model.E * model.Ad3In) : 0,
+        model.E > 0 && model.Ad3In > 0 && model.lFreeIn >= 0
+      );
       shankSegments.forEach(seg => pushPart(parts, seg.name.replace("光杆", "中间杆"), seg.length, seg.od, seg.id, model.E));
+      pushCustomPart(
+        parts,
+        "螺母端空余螺纹柔度 δfree_nut",
+        model.lFreeNut,
+        model.d3Nut,
+        0,
+        model.Ad3Nut,
+        model.E > 0 && model.Ad3Nut > 0 && model.lFreeNut > 0 ? model.lFreeNut / (model.E * model.Ad3Nut) : 0,
+        model.E > 0 && model.Ad3Nut > 0 && model.lFreeNut >= 0
+      );
       pushCustomPart(
         parts,
         "螺母端外螺纹小径柔度 δG_nut",
@@ -1021,15 +1061,17 @@
       renderResult(parts);
       renderFormula(
         [
+          "δfree_in = l_free_in / (ES · Ad3_in)",
           "δR = Σ lRi / (ES · ARi)",
+          "δfree_nut = l_free_nut / (ES · Ad3_nut)",
           "δG_in = lG_in / (ES · Ad3_in)",
           "δM_in = lM_in / (EM_in · AN_in)",
           "δG_nut = lG_nut / (ES · Ad3_nut)",
           "δM_nut = lM_nut / (EM_nut · AN_nut)"
         ],
-        `当前数值：lG_in = 0.5 × ${fmt(model.dIn, 3)} = ${fmt(model.lGIn, 3)} mm；lM_in = 0.33 × ${fmt(model.dIn, 3)} = ${fmt(model.lMIn, 3)} mm；lG_nut = 0.5 × ${fmt(model.dNut, 3)} = ${fmt(model.lGNut, 3)} mm；lM_nut = 0.4 × ${fmt(model.dNut, 3)} = ${fmt(model.lMNut, 3)} mm。`
+        `当前数值：l_free_in = ${fmt(model.lFreeIn, 3)} mm；ΣlRi = ${fmt(shankLength, 3)} mm；l_free_nut = ${fmt(model.lFreeNut, 3)} mm；lG_in = ${fmt(model.lGIn, 3)} mm；lM_in = ${fmt(model.lMIn, 3)} mm；lG_nut = ${fmt(model.lGNut, 3)} mm；lM_nut = ${fmt(model.lMNut, 3)} mm。`
       );
-      $("note").innerHTML = "算法模式固定为 VDI 2230。双头螺柱模式不计算螺栓头部 δSK；旋入端按盲孔拧入，螺母端按螺母固定，两端螺纹规格和内螺纹材料模量分别计算。";
+      $("note").innerHTML = "算法模式固定为 VDI 2230。双头螺柱模式不计算螺栓头部 δSK；两端空余螺纹按对应端小径面积计入受拉柔度，且必须与中间杆段共同组成夹紧长度 lK；两端螺纹啮合等效区不计入 lK。";
       drawStud({ ...model, shankSegments });
     }
 
@@ -1076,7 +1118,9 @@
       const parts = [
         { name: "lG_in", length: model.lGIn, od: model.dIn * .92, color: "#b45309" },
         { name: "lM_in", length: model.lMIn, od: model.dIn, color: "#92400e" },
+        { name: "l_free_in", length: model.lFreeIn, od: model.d3In, color: "#d97706" },
         ...model.shankSegments.map((seg, i) => ({ name: `l${i + 1}`, length: seg.length, od: seg.od, id: seg.id, color: i % 2 ? "#2563eb" : "#0f766e" })),
+        { name: "l_free_nut", length: model.lFreeNut, od: model.d3Nut, color: "#9333ea" },
         { name: "lG_nut", length: model.lGNut, od: model.dNut * .92, color: "#7c3aed" },
         { name: "lM_nut", length: model.lMNut, od: model.dNut, color: "#475569" }
       ].filter(part => part.length > 0);
@@ -1105,7 +1149,7 @@
         x += w;
       });
 
-      chunks.push(`<text x="55" y="32" font-size="13" fill="#334155">双头螺柱分段示意；旋入端按盲孔，螺母端按螺母固定</text>`);
+      chunks.push(`<text x="55" y="32" font-size="13" fill="#334155">双头螺柱分段示意；l_free_in + 中间杆段 + l_free_nut = lK，啮合区不计入 lK</text>`);
       svg.innerHTML = chunks.join("");
     }
 
@@ -1119,6 +1163,8 @@
       $("headType").value = "external";
       $("elasticModulus").value = "210000";
       $("internalElasticModulus").value = "210000";
+      $("studInsertFreeThread").value = "15";
+      $("studNutFreeThread").value = "15";
       setDiameterAndPitch(20, 2.5);
       $("gripLength").value = "54";
       $("headHeight").value = "16";
@@ -1134,6 +1180,8 @@
       $("headType").value = "external";
       $("elasticModulus").value = "210000";
       $("internalElasticModulus").value = "210000";
+      $("studInsertFreeThread").value = "15";
+      $("studNutFreeThread").value = "15";
       setDiameterAndPitch(20, 2.5);
       $("gripLength").value = "54";
       $("headHeight").value = "16";
