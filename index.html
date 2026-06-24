@@ -248,7 +248,7 @@
       display: block;
       width: 100%;
       height: auto;
-      max-height: 360px;
+      max-height: 180px;
       object-fit: contain;
       background: #fff;
     }
@@ -394,7 +394,7 @@
               <option value="internal">内六角螺栓头</option>
             </select>
           </label>
-          <label>弹性模量 E [N/mm²]
+          <label><span id="elasticModulusLabel">弹性模量 E [N/mm²]</span>
             <input id="elasticModulus" type="text" inputmode="decimal" value="210000">
           </label>
           <label class="ordinary-only">内螺纹材料模量 EM [N/mm²]
@@ -699,6 +699,7 @@
       document.querySelectorAll(".ordinary-only").forEach(el => el.classList.toggle("hidden", stud));
       document.querySelectorAll(".bolt-only").forEach(el => el.classList.toggle("hidden", stud));
       $("studThreadSection").classList.toggle("hidden", !stud);
+      $("elasticModulusLabel").textContent = stud ? "螺柱材料弹性模量 ES [N/mm²]" : "弹性模量 E [N/mm²]";
       calculate();
     }
 
@@ -1066,9 +1067,6 @@
         x += w;
       });
 
-      chunks.push(`<line x1="${x0}" y1="235" x2="${x0 + usable}" y2="235" stroke="#475569"/>`);
-      chunks.push(`<path d="M${x0} 235 l8 -5 v10 zM${x0 + usable} 235 l-8 -5 v10 z" fill="#475569"/>`);
-      chunks.push(`<text x="${x0 + usable / 2}" y="258" text-anchor="middle" font-size="13" fill="#334155">示意总长 ${fmt(totalLength, 2)} mm；夹紧长度 lK = ${fmt(model.lK, 2)} mm</text>`);
       chunks.push(`<text x="55" y="32" font-size="13" fill="#334155">计算分段示意；hh 为几何示意尺寸，lSK 为等效计算长度</text>`);
       svg.innerHTML = chunks.join("");
     }
@@ -1107,9 +1105,6 @@
         x += w;
       });
 
-      chunks.push(`<line x1="${x0}" y1="235" x2="${x0 + usable}" y2="235" stroke="#475569"/>`);
-      chunks.push(`<path d="M${x0} 235 l8 -5 v10 zM${x0 + usable} 235 l-8 -5 v10 z" fill="#475569"/>`);
-      chunks.push(`<text x="${x0 + usable / 2}" y="258" text-anchor="middle" font-size="13" fill="#334155">示意总长 ${fmt(totalLength, 2)} mm；夹紧长度 lK = ${fmt(model.lK, 2)} mm</text>`);
       chunks.push(`<text x="55" y="32" font-size="13" fill="#334155">双头螺柱分段示意；旋入端按盲孔，螺母端按螺母固定</text>`);
       svg.innerHTML = chunks.join("");
     }
