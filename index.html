@@ -185,6 +185,20 @@
       line-height: 1.55;
     }
 
+    .hint-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hint-row .hint {
+      margin: 0;
+      flex: 1 1 280px;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -369,6 +383,8 @@
     <div class="header-actions">
       <button id="exampleSolid">载入 M20 实心示例</button>
       <button id="exampleHollow">载入阶梯空心示例</button>
+      <button id="exampleStudM20">载入 M20 双头螺柱示例</button>
+      <button id="exampleStudMixed">载入异径双头螺柱示例</button>
       <button class="primary" id="calcBtn">计算</button>
     </div>
   </header>
@@ -472,7 +488,10 @@
             </label>
           </div>
           <p class="hint">双头螺柱模式下，旋入端按盲孔拧入 lM_in = 0.33d_in，螺母端按螺母固定 lM_nut = 0.4d_nut，两端外螺纹等效长度均取 lG = 0.5d。</p>
-          <p class="hint" id="studGripCheck">夹紧长度组成：-</p>
+          <div class="hint-row">
+            <p class="hint" id="studGripCheck">夹紧长度组成：-</p>
+            <button id="autoFitStudNutFree" type="button">自动调整螺母端空余螺纹</button>
+          </div>
         </div>
 
         <div class="section">
@@ -844,10 +863,12 @@
           <td>${fmt(part.delta)}</td>
         </tr>
       `).join("");
+      return { deltaTotal, stiffness };
     }
 
-    function renderFormula(lines, values) {
-      $("formulaGrid").innerHTML = `${lines.map(line => `<div>${line}</div>`).join("")}<div id="formulaValues">${values}</div>`;
+    function renderFormula(lines, values, sumText = "") {
+      const sumBlock = sumText ? `<div>${sumText}</div>` : "";
+      $("formulaGrid").innerHTML = `${lines.map(line => `<div>${line}</div>`).join("")}<div id="formulaValues">${values}</div>${sumBlock}`;
     }
 
     function calculate() {
@@ -933,7 +954,7 @@
         return;
       }
 
-      renderResult(parts);
+      const totals = renderResult(parts);
       const typeText = connectionType === "blind"
         ? "当前为盲孔连接，lM = 0.33d，EM 取内螺纹材料模量。"
         : "当前为贯穿连接，lM = 0.4d，EM 通常取螺母/内螺纹材料模量。";
@@ -952,7 +973,8 @@
           "δM = lM / (EM · AN)",
           "δGM = δG + δM"
         ],
-        `当前数值：lG = 0.5 × ${fmt(d, 3)} = ${fmt(lG, 3)} mm；lM = ${connectionType === "blind" ? "0.33" : "0.4"} × ${fmt(d, 3)} = ${fmt(lM, 3)} mm；lGew = max(${fmt(lK, 3)} - ${fmt(shankLength, 3)}, 0) = ${fmt(threadLoadedLength, 3)} mm。`
+        `当前数值：lG = 0.5 × ${fmt(d, 3)} = ${fmt(lG, 3)} mm；lM = ${connectionType === "blind" ? "0.33" : "0.4"} × ${fmt(d, 3)} = ${fmt(lM, 3)} mm；lGew = max(${fmt(lK, 3)} - ${fmt(shankLength, 3)}, 0) = ${fmt(threadLoadedLength, 3)} mm。`,
+        `总柔度：δS = δSK + δR + δGew + δG + δM = ${fmt(totals.deltaTotal)} mm/N。`
       );
       $("note").innerHTML = `算法模式固定为 VDI 2230。${headText} δG = lG/(ES·Ad3)，δM = lM/(EM·AN)，δGM = δG + δM。${typeText} ${threadText} hh 与 dh 主要用于几何示意和空心/阶梯光杆核对。`;
 
@@ -1058,7 +1080,7 @@
         return;
       }
 
-      renderResult(parts);
+      const totals = renderResult(parts);
       renderFormula(
         [
           "δfree_in = l_free_in / (ES · Ad3_in)",
@@ -1069,7 +1091,8 @@
           "δG_nut = lG_nut / (ES · Ad3_nut)",
           "δM_nut = lM_nut / (EM_nut · AN_nut)"
         ],
-        `当前数值：l_free_in = ${fmt(model.lFreeIn, 3)} mm；ΣlRi = ${fmt(shankLength, 3)} mm；l_free_nut = ${fmt(model.lFreeNut, 3)} mm；lG_in = ${fmt(model.lGIn, 3)} mm；lM_in = ${fmt(model.lMIn, 3)} mm；lG_nut = ${fmt(model.lGNut, 3)} mm；lM_nut = ${fmt(model.lMNut, 3)} mm。`
+        `当前数值：l_free_in = ${fmt(model.lFreeIn, 3)} mm；ΣlRi = ${fmt(shankLength, 3)} mm；l_free_nut = ${fmt(model.lFreeNut, 3)} mm；lG_in = ${fmt(model.lGIn, 3)} mm；lM_in = ${fmt(model.lMIn, 3)} mm；lG_nut = ${fmt(model.lGNut, 3)} mm；lM_nut = ${fmt(model.lMNut, 3)} mm。`,
+        `总柔度：δS = δG_in + δM_in + δfree_in + δR + δfree_nut + δG_nut + δM_nut = ${fmt(totals.deltaTotal)} mm/N。`
       );
       $("note").innerHTML = "算法模式固定为 VDI 2230。双头螺柱模式不计算螺栓头部 δSK；两端空余螺纹按对应端小径面积计入受拉柔度，且必须与中间杆段共同组成夹紧长度 lK；两端螺纹啮合等效区不计入 lK。";
       drawStud({ ...model, shankSegments });
@@ -1158,6 +1181,53 @@
       populatePitches(pitch);
     }
 
+    function setStudDiameterAndPitch(prefix, d, pitch) {
+      $(`${prefix}Diameter`).value = String(d);
+      populatePitchSelect(`${prefix}Diameter`, `${prefix}Pitch`, pitch);
+    }
+
+    function shankLengthTotal() {
+      return getSegments().reduce((sum, item) => sum + (Number.isFinite(item.length) ? item.length : 0), 0);
+    }
+
+    function loadStudExample(insertD, insertPitch, nutD, nutPitch) {
+      $("connectionType").value = "studBlind";
+      $("elasticModulus").value = "210000";
+      $("studInsertElasticModulus").value = "210000";
+      $("studNutElasticModulus").value = "210000";
+      setStudDiameterAndPitch("studInsert", insertD, insertPitch);
+      setStudDiameterAndPitch("studNut", nutD, nutPitch);
+      $("gripLength").value = "54";
+      $("headHole").value = "0";
+      $("studInsertFreeThread").value = "15";
+      $("studNutFreeThread").value = "15";
+      segmentsEl.innerHTML = "";
+      addSegmentRow(24, nutD, 0);
+      updateModeView();
+      updateStudThreadDiameters();
+    }
+
+    function loadStudM20Example() {
+      loadStudExample(20, 2.5, 20, 2.5);
+    }
+
+    function loadStudMixedExample() {
+      loadStudExample(16, 2, 20, 2.5);
+    }
+
+    function autoFitStudNutFreeThread() {
+      const lK = num("gripLength");
+      const lFreeIn = num("studInsertFreeThread");
+      const required = lK - lFreeIn - shankLengthTotal();
+      if (!Number.isFinite(required) || required < 0) {
+        renderValidation([{ level: "error", text: "夹紧长度不足，无法自动调整螺母端空余螺纹；请增大 lK 或减小旋入端空余螺纹/中间杆段长度。" }]);
+        showInvalidState();
+        return;
+      }
+      setInput("studNutFreeThread", required);
+      calculate();
+    }
+
     function loadSolidExample() {
       $("connectionType").value = "through";
       $("headType").value = "external";
@@ -1221,6 +1291,9 @@
     $("calcBtn").addEventListener("click", calculate);
     $("exampleSolid").addEventListener("click", loadSolidExample);
     $("exampleHollow").addEventListener("click", loadHollowExample);
+    $("exampleStudM20").addEventListener("click", loadStudM20Example);
+    $("exampleStudMixed").addEventListener("click", loadStudMixedExample);
+    $("autoFitStudNutFree").addEventListener("click", autoFitStudNutFreeThread);
 
     populateDiameters(20);
     populateStudThreadSelects();
